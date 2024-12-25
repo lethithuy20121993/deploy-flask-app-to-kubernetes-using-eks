@@ -1,4 +1,4 @@
-# Deploying a Flask API
+# Pipeline deployment a Flask API on AWS
 
 This is the project starter repo for the course Server Deployment, Containerization, and Testing.
 
@@ -75,14 +75,7 @@ cd cd0157-Server-Deployment-and-Containerization/
 
      
 ## Project Steps
+### Running the App Locally
+```bash
 
-Completing the project involves several steps:
-
-1. Write a Dockerfile for a simple Flask API
-2. Build and test the container locally
-3. Create an EKS cluster
-4. Store a secret using AWS Parameter Store
-5. Create a CodePipeline pipeline triggered by GitHub checkins
-6. Create a CodeBuild stage which will build, test, and deploy your code
-
-For more detail about each of these steps, see the project lesson.
+```
