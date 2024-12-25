@@ -120,4 +120,136 @@ eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MzYzNDI1OTQsIm5iZiI6MTczNTEzMjk
 ```
 
 - Access endpoint /contents
-### 
+To try the /contents endpoint
+```bash
+curl --request GET 'http://localhost:8080/contents' -H "Authorization: Bearer ${TOKEN}" | jq .
+```
+
+Result:
+```bash
+{
+  "email": "abc@xyz.com",
+  "exp": 1736342594,
+  "nbf": 1735132994
+}
+```
+
+### Containerizing and Running Locally
+1. Verify the Dockerfile
+```bash
+# Use the `python:3.9` as a source image from the Amazon ECR Public Gallery
+# We are not using `python:3.7.2-slim` from Dockerhub because it has put a  pull rate limit.
+FROM public.ecr.aws/sam/build-python3.9:latest
+
+# Set up an app directory for your code
+COPY . /app
+WORKDIR /app
+
+# Install `pip` and needed Python packages from `requirements.txt`
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+# Define an entrypoint which will run the main app using the Gunicorn WSGI server.
+ENTRYPOINT ["gunicorn", "-b", ":8080", "main:APP"]
+
+```
+
+2. Store Environment Variables
+Create a file named .env_file and save both JWT_SECRET and LOG_LEVEL into that .env_file
+```bash
+JWT_SECRET='myjwtsecret'
+LOG_LEVEL=DEBUG
+```
+
+3. Start the Docker Desktop service.
+
+4. Build an image
+```bash
+docker build -t myimage .
+```
+
+Result:
+![Docker build](images/docker_1.png)
+
+5. Create and run a container (named is myContainer1)
+```bash
+docker run --name myContainer1 --env-file=.env_file -p 80:8080 myimage
+```
+
+Result:
+![Docker run](images/docker_2.png)
+
+6. Check the endpoints
+![check healthy app](images/docker_3.png)
+
+![check auth, content apis](images/docker_4.png)
+
+
+### Deploy application to Kubernetes Cluster
+1. CloudFormation Design
+![CloudFormation Design](images/ek_1.png)
+
+2. Create EKS Cluster
+```bash
+eksctl create cluster --name simple-jwt-api --nodes=2 --instance-types=t2.medium --region=us-east-2
+```
+
+- get cluster information
+![cluster information](images/ek_2.png)
+
+3. get Current AWS account
+![Current AWS account](images/ek_3.png)
+
+4. get current configmap
+![current configmap](images/ek_4.png)
+
+5. Get JWT_SECRET
+![JWT_SECRET](images/ek_5.png)
+
+6. Get Github access token
+refer: https://github.com/settings/tokens/
+
+7. Create CloudFormation Stack
+- edit: ci-cd-codepipeline.cfn.yml (refer to source code)
+- create stack
+![create stack](images/ek_6.png)
+
+8. create pipeline
+refer buildspec.yml file in source code
+
+![pipeline](images/ek_7.png)
+
+### Test Endpoint
+- Run this command to get "simple-jwt-api" service information
+```bash
+kubectl get services simple-jwt-api -o wide
+```
+
+![alt text](images/ek_8.png)
+
+-/auth endpoint
+```bash
+export TOKEN=`curl -d '{"email":"thuy123@email.com","password":"abc123"}' -H "Content-Type: application/json" -X POST aff937e5681b84284941e9ea234294f9-1482688595.us-east-2.elb.amazonaws.com/auth  | jq -r '.token'`
+```
+
+![alt text](images/ek_9.png)
+
+- /contents endpoint
+```bash
+curl --request GET 'aff937e5681b84284941e9ea234294f9-1482688595.us-east-2.elb.amazonaws.com/contents' -H "Authorization: Bearer ${TOKEN}" | jq
+```
+
+![alt text](images/ek_10.png)
+
+### Delete CloudFormation Stack
+![alt text](images/ek_11.png)
+
+### Delete EKS Cluster
+```bash
+eksctl delete cluster simple-jwt-api  --region=us-east-2
+```
+
+### Delete parameter-store
+```bash
+aws ssm delete-parameter --name JWT_SECRET
+```
