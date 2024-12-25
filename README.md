@@ -76,6 +76,26 @@ cd cd0157-Server-Deployment-and-Containerization/
      
 ## Project Steps
 ### Running the App Locally
+1. Set up the environment
 ```bash
-
+# A secret text string to be used to creating a JWT
+export JWT_SECRET='myjwtsecret' && export LOG_LEVEL=DEBUG
+# Verify
+echo $JWT_SECRET
+echo $LOG_LEVEL
 ```
+
+2. Run the app
+```bash
+python main.py
+```
+
+3. verify
+Open http://127.0.0.1:8080/ in a new browser OR run 
+
+```bash
+curl --request GET http://localhost:8080/
+```
+It will give you a response as "Healthy".
+
+
