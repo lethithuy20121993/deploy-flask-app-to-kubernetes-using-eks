@@ -1,64 +1,45 @@
 ---
 version: 0.2
 
+
 phases:
   install:
     runtime-versions:
       python: 3.7
     commands:
-      - echo 'Initializing Docker daemon'
-      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2 &
+      - echo 'about to call dockerd'
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2&
       - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
-      - echo 'Downloading AWS IAM Authenticator...'
-      - curl -sS -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-07-26/bin/linux/amd64/aws-iam-authenticator
-      - echo 'Downloading kubectl binary for Kubernetes v1.27.9'
-      - curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.27.9/2024-01-04/bin/linux/amd64/kubectl
-      - echo 'Validating kubectl checksum...'
-      - curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.27.9/2024-01-04/bin/linux/amd64/kubectl.sha256
-      - sha256sum -c kubectl.sha256
-      - echo 'Installing kubectl and AWS IAM Authenticator'
+      - curl -sS -o aws-iam-authenticator https://amazon-eks.s3-us-east-2.amazonaws.com/1.10.3/2018-07-26/bin/linux/amd64/aws-iam-authenticator
+      # Get latest stable release kubectl
+      - curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+        # Command for specific kubectl version:
+        #- curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl
       - chmod +x ./kubectl ./aws-iam-authenticator
+      - echo `kubectl version`
       - export PATH=$PWD/:$PATH
-      - python --version
-      - echo 'export PATH=$PWD/:$PATH' >> $HOME/.bashrc
-      - echo "Kubectl version: $(kubectl version --short --client)"
-      - python -m pip install --upgrade pip
-      - apt-get update && apt-get -y install jq
-      - pip install --upgrade awscli
-
+      - python -m pip install --upgrade --force pip
+      - apt-get update && apt-get -y install jq  && pip install --upgrade awscli
   pre_build:
-    commands:
-      - echo 'Setting up Docker build tag and environment variables'
-      - TAG="$REPOSITORY_NAME.$REPOSITORY_BRANCH.$ENVIRONMENT_NAME.$(date +%Y-%m-%d.%H.%M.%S).$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
-      - sed -i 's@CONTAINER_IMAGE@'"$REPOSITORY_URI:$TAG"'@' simple_jwt_api.yml
-      - echo 'Logging in to Amazon ECR...'
-      - $(aws ecr get-login --no-include-email)
-      - export KUBECONFIG=$HOME/.kube/config
-      - echo 'Listing project files:'
-      - ls -l
-      - echo 'Installing Python dependencies...'
-      - pip install -r requirements.txt
-
+      commands:
+        - pip3 install -r requirements.txt 
+        - python -m pytest test_main.py
+        - TAG="$REPOSITORY_NAME.$REPOSITORY_BRANCH.$ENVIRONMENT_NAME.$(date +%Y-%m-%d.%H.%M.%S).$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+        - sed -i 's@CONTAINER_IMAGE@'"$REPOSITORY_URI:$TAG"'@' simple_jwt_api.yml
+        - $(aws ecr get-login --no-include-email)
+        - export KUBECONFIG=$HOME/.kube/config
   build:
     commands:
-      - echo 'Building Docker image...'
       - docker build --tag $REPOSITORY_URI:$TAG .
 
   post_build:
     commands:
-      - echo 'Pushing Docker image to ECR...'
       - docker push $REPOSITORY_URI:$TAG
-      - echo 'Updating Kubernetes configuration...'
       - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --role-arn $EKS_KUBECTL_ROLE_ARN
-      - echo 'Applying Kubernetes manifests...'
-      - kubectl apply -f simple_jwt_api.yml
-      - echo 'Creating build artifact...'
+      - kubectl apply -f simple_jwt_api.yml 
       - printf '[{"name":"simple_jwt_api","imageUri":"%s"}]' $REPOSITORY_URI:$TAG > build.json
-
 artifacts:
-  files:
-    - build.json
-
+  files: build.json
 env:
-  parameter-store:
+  parameter-store:         
     JWT_SECRET: JWT_SECRET
