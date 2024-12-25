@@ -90,12 +90,34 @@ echo $LOG_LEVEL
 python main.py
 ```
 
-3. verify
+3. Verify
 Open http://127.0.0.1:8080/ in a new browser OR run 
 
 ```bash
 curl --request GET http://localhost:8080/
 ```
-It will give you a response as "Healthy".
 
+Result:
+```bash
+thuyle@Admin-PC:~$ curl --request GET http://localhost:8080/
+"Healthy"
+```
 
+- Access endpoint /auth
+To try the /auth endpoint
+```bash
+export TOKEN=`curl --data '{"email":"abc@xyz.com","password":"mypwd"}' --header "Content-Type: application/json" -X POST localhost:8080/auth  | jq -r '.token'`
+```
+
+```bash
+echo $TOKEN
+```
+
+Result:
+```bash
+thuyle@Admin-PC:~$ echo $TOKEN
+eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MzYzNDI1OTQsIm5iZiI6MTczNTEzMjk5NCwiZW1haWwiOiJhYmNAeHl6LmNvbSJ9.CnRArVJA-8E0p8s9ASdk0gTc2BBnL-NrSpOs9WwrMWI
+```
+
+- Access endpoint /contents
+### 
