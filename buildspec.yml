@@ -18,8 +18,13 @@ phases:
       - chmod +x ./kubectl ./aws-iam-authenticator
       - echo `kubectl version`
       - export PATH=$PWD/:$PATH
+      # Check jq, install if missing
+      - which jq || (apt-get update && apt-get -y install jq)
+      # Check awscli, upgrade if necessary
+      - aws --version || (curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && sudo ./aws/install)
+      # Upgrade pip
       - python -m pip install --upgrade --force pip
-      - apt-get update && apt-get -y install jq  && pip install --upgrade awscli
+      # - apt-get update && apt-get -y install jq  && pip install --upgrade awscli
   pre_build:
       commands:
         - pip3 install -r requirements.txt 
